@@ -18,7 +18,10 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:tailwind": "tailwindcss -i src/tailwind.css -o public/generated/tailwind.css --watch",
     "build": "react-scripts build",
+    "build:tailwind": "tailwindcss -i src/tailwind.css -o public/generated/tailwind.css",
+    "build:tailwind-optimized": "NODE_ENV=production tailwindcss -i src/tailwind.css -o public/generated/tailwind.css --minify",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -39,5 +42,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.3.7",
+    "postcss": "^8.3.11",
+    "postcss-cli": "^9.0.1",
+    "tailwindcss": "^2.2.17"
   }
 }

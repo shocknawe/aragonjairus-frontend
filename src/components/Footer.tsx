@@ -9,7 +9,7 @@ export default function Footer() {
           <a href="https://www.linkedin.com/in/aragonjairus/" target="_blank" rel="noreferrer">
             LinkedIn
           </a>
-          <a href="https://github.com" target="_blank" rel="noreferrer">
+          <a href="https://github.com/shocknawe" target="_blank" rel="noreferrer">
             GitHub
           </a>
           <a href="mailto:jairus.aragon@gmail.com">Email</a>

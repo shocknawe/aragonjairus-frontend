@@ -22,13 +22,16 @@ export function createGlobeScene(canvas: HTMLCanvasElement) {
   scene.add(globe);
 
   const R = 4.4;
-  const accent = new THREE.Color('#c6ff3c');
+  // Site highlight palette (matches the capability accent colours).
+  const palette = ['#c6ff3c', '#54e6a0', '#ffb454', '#ff6a5c', '#b29bff'].map(
+    (c) => new THREE.Color(c),
+  );
 
   // --- Lat / long wireframe -------------------------------------------
   const lineMat = new THREE.LineBasicMaterial({
     color: 0xece9e2,
     transparent: true,
-    opacity: 0.16,
+    opacity: 0.08,
   });
 
   // parallels
@@ -61,6 +64,7 @@ export function createGlobeScene(canvas: HTMLCanvasElement) {
   const COUNT = 900;
   const positions = new Float32Array(COUNT * 3);
   const scales = new Float32Array(COUNT);
+  const colors = new Float32Array(COUNT * 3);
   const golden = Math.PI * (3 - Math.sqrt(5));
   for (let i = 0; i < COUNT; i++) {
     const y = 1 - (i / (COUNT - 1)) * 2;
@@ -70,14 +74,18 @@ export function createGlobeScene(canvas: HTMLCanvasElement) {
     positions[i * 3 + 1] = y * R;
     positions[i * 3 + 2] = Math.sin(theta) * r * R;
     scales[i] = Math.random() > 0.85 ? 2.2 : 0.7;
+    const c = palette[(Math.random() * palette.length) | 0];
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
   }
   const pGeo = new THREE.BufferGeometry();
   pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   pGeo.setAttribute('aScale', new THREE.BufferAttribute(scales, 1));
+  pGeo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
 
   const uniforms = {
     uSize: { value: 30 * Math.min(window.devicePixelRatio, 2) },
-    uColor: { value: accent },
   };
   const pMat = new THREE.ShaderMaterial({
     uniforms,
@@ -87,7 +95,10 @@ export function createGlobeScene(canvas: HTMLCanvasElement) {
     vertexShader: /* glsl */ `
       uniform float uSize;
       attribute float aScale;
+      attribute vec3 aColor;
+      varying vec3 vColor;
       void main() {
+        vColor = aColor;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
         gl_PointSize = uSize * aScale * (1.0 / -mv.z);
@@ -95,38 +106,15 @@ export function createGlobeScene(canvas: HTMLCanvasElement) {
     `,
     fragmentShader: /* glsl */ `
       precision mediump float;
-      uniform vec3 uColor;
+      varying vec3 vColor;
       void main() {
         float d = length(gl_PointCoord - 0.5);
         if (d > 0.5) discard;
-        gl_FragColor = vec4(uColor, smoothstep(0.5, 0.0, d));
+        gl_FragColor = vec4(vColor, smoothstep(0.5, 0.0, d));
       }
     `,
   });
   globe.add(new THREE.Points(pGeo, pMat));
-
-  // --- Travelling arcs -------------------------------------------------
-  const arcMat = new THREE.LineBasicMaterial({
-    color: accent,
-    transparent: true,
-    opacity: 0.55,
-  });
-  function randomSurface() {
-    const v = new THREE.Vector3(
-      Math.random() - 0.5,
-      Math.random() - 0.5,
-      Math.random() - 0.5,
-    );
-    return v.normalize().multiplyScalar(R);
-  }
-  for (let i = 0; i < 4; i++) {
-    const a = randomSurface();
-    const b = randomSurface();
-    const mid = a.clone().add(b).multiplyScalar(0.5).normalize().multiplyScalar(R * 1.5);
-    const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
-    const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(40));
-    globe.add(new THREE.Line(geo, arcMat));
-  }
 
   // --- Sizing & loop ---------------------------------------------------
   function resize() {

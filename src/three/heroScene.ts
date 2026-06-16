@@ -1,8 +1,12 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 /**
- * A breathing, mouse-reactive particle sphere rendered as soft glowing points.
- * Vanilla Three.js so it stays free of React-version peer constraints.
+ * Floating MacBook hero, after the pmndrs "floating-laptop" demo.
+ * Loads the same mac-draco.glb model and reproduces its spring lid-open and
+ * floating sway in vanilla Three.js, with "hello world" typed on the screen.
  */
 export function createHeroScene(canvas: HTMLCanvasElement) {
   const renderer = new THREE.WebGLRenderer({
@@ -12,89 +16,135 @@ export function createHeroScene(canvas: HTMLCanvasElement) {
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.82;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.z = 15;
+  // Camera mirrors the reference: behind the model, looking through the π-spin.
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  camera.position.set(0, 0, -26);
+  camera.lookAt(0, 0, 0);
 
-  // --- Fibonacci sphere of points -------------------------------------
-  const COUNT = 2600;
-  const radius = 5.6;
-  const positions = new Float32Array(COUNT * 3);
-  const scales = new Float32Array(COUNT);
-  const golden = Math.PI * (3 - Math.sqrt(5));
+  // Studio reflections (offline stand-in for Environment preset="city")
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.55; // calmer, neutral reflections
 
-  for (let i = 0; i < COUNT; i++) {
-    const y = 1 - (i / (COUNT - 1)) * 2;
-    const r = Math.sqrt(1 - y * y);
-    const theta = golden * i;
-    positions[i * 3] = Math.cos(theta) * r * radius;
-    positions[i * 3 + 1] = y * radius;
-    positions[i * 3 + 2] = Math.sin(theta) * r * radius;
-    scales[i] = 0.6 + Math.random() * 1.4;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+  const key = new THREE.DirectionalLight(0xffffff, 1);
+  key.position.set(-6, 9, -10);
+  scene.add(key);
+
+  // --- Layout root ----------------------------------------------------
+  const root = new THREE.Group(); // positioned per-viewport
+  scene.add(root);
+  const spin = new THREE.Group(); // the reference's [0, π, 0] wrapper
+  spin.rotation.set(0, Math.PI, 0);
+  root.add(spin);
+  const floatG = new THREE.Group(); // floats / sways
+  spin.add(floatG);
+  const hinge = new THREE.Group(); // lid pivot
+  hinge.position.set(0, -0.04, 0.41);
+  floatG.add(hinge);
+
+  // --- Screen texture (typed "hello world") ---------------------------
+  const screenTex = new THREE.CanvasTexture(screenCanvas);
+  screenTex.colorSpace = THREE.SRGBColorSpace;
+  screenTex.flipY = false; // GLTF UV convention
+
+  // --- Load the model -------------------------------------------------
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('/draco/gltf/');
+  const loader = new GLTFLoader();
+  loader.setDRACOLoader(draco);
+
+  let loaded = false;
+  loader.load(
+    '/mac-draco.glb',
+    (gltf) => {
+      const byName = new Map<string, THREE.Mesh>();
+      gltf.scene.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) byName.set(o.name, o as THREE.Mesh);
+      });
+      const make = (name: string) => {
+        const src = byName.get(name);
+        if (!src) return null;
+        return new THREE.Mesh(src.geometry, src.material);
+      };
+
+      // Lid assembly
+      const screenInner = new THREE.Group();
+      screenInner.position.set(0, 2.96, -0.13);
+      screenInner.rotation.set(Math.PI / 2, 0, 0);
+      hinge.add(screenInner);
+      ['Cube008', 'Cube008_1', 'Cube008_2'].forEach((n) => {
+        const m = make(n);
+        if (m) screenInner.add(m);
+      });
+
+      // Light up the screen with the editor canvas
+      const screenMesh = make('Cube008_2');
+      const screenSrc = byName.get('Cube008_2');
+      if (screenSrc) {
+        const sm = (screenSrc.material as THREE.MeshStandardMaterial).clone();
+        sm.color = new THREE.Color(0x000000);
+        sm.emissive = new THREE.Color(0xffffff);
+        sm.emissiveMap = screenTex;
+        sm.emissiveIntensity = 1;
+        sm.toneMapped = false;
+        sm.needsUpdate = true;
+        // replace the screen mesh material in the assembled lid
+        screenInner.children.forEach((c) => {
+          if ((c as THREE.Mesh).geometry === screenSrc.geometry)
+            (c as THREE.Mesh).material = sm;
+        });
+      }
+      void screenMesh;
+
+      // Keyboard
+      const kb = make('keyboard');
+      if (kb) {
+        kb.position.set(1.79, 0, 3.45);
+        floatG.add(kb);
+      }
+      // Base + trackpad
+      const baseG = new THREE.Group();
+      baseG.position.set(0, -0.1, 3.39);
+      floatG.add(baseG);
+      ['Cube002', 'Cube002_1'].forEach((n) => {
+        const m = make(n);
+        if (m) baseG.add(m);
+      });
+      // Touch bar
+      const tb = make('touchbar');
+      if (tb) {
+        tb.position.set(0, -0.03, 1.2);
+        floatG.add(tb);
+      }
+
+      loaded = true;
+    },
+    undefined,
+    (err) => console.warn('Laptop model failed to load:', err),
+  );
+
+  // --- Intro / animation state ---------------------------------------
+  let triggered = false;
+  let triggerTime = 0;
+  function playIntro() {
+    if (triggered) return;
+    triggered = true;
+    triggerTime = clockTime;
   }
+  const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+  const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
+  const lerp = THREE.MathUtils.lerp;
+  const HINGE_CLOSED = 1.575;
+  const HINGE_OPEN = -0.425;
 
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1));
-
-  const uniforms = {
-    uTime: { value: 0 },
-    uSize: { value: 26 * Math.min(window.devicePixelRatio, 2) },
-    uColorA: { value: new THREE.Color('#c6ff3c') },
-    uColorB: { value: new THREE.Color('#ece9e2') },
-    uIntro: { value: 0 },
-  };
-
-  const material = new THREE.ShaderMaterial({
-    uniforms,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    vertexShader: /* glsl */ `
-      uniform float uTime;
-      uniform float uSize;
-      uniform float uIntro;
-      attribute float aScale;
-      varying float vMix;
-      void main() {
-        vec3 p = position;
-        float n = sin(p.x * 0.55 + uTime * 0.4)
-                * cos(p.y * 0.55 + uTime * 0.3)
-                * sin(p.z * 0.55 + uTime * 0.5);
-        p += normalize(position) * n * 0.45;
-        p *= mix(0.2, 1.0, uIntro);
-        vMix = 0.5 + 0.5 * n;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_Position = projectionMatrix * mv;
-        gl_PointSize = uSize * aScale * (1.0 / -mv.z) * mix(0.2, 1.0, uIntro);
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      precision mediump float;
-      uniform vec3 uColorA;
-      uniform vec3 uColorB;
-      varying float vMix;
-      void main() {
-        vec2 c = gl_PointCoord - 0.5;
-        float d = length(c);
-        if (d > 0.5) discard;
-        float alpha = smoothstep(0.5, 0.0, d);
-        vec3 col = mix(uColorA, uColorB, vMix);
-        gl_FragColor = vec4(col, alpha * 0.9);
-      }
-    `,
-  });
-
-  const points = new THREE.Points(geometry, material);
-  const group = new THREE.Group();
-  group.add(points);
-  scene.add(group);
-
-  // --- Interaction & sizing -------------------------------------------
-  const mouse = { x: 0, y: 0 };
+  // --- Interaction & sizing ------------------------------------------
   const target = { x: 0, y: 0 };
-
+  const mouse = { x: 0, y: 0 };
   function onPointer(e: PointerEvent) {
     target.x = (e.clientX / window.innerWidth - 0.5) * 2;
     target.y = (e.clientY / window.innerHeight - 0.5) * 2;
@@ -107,39 +157,76 @@ export function createHeroScene(canvas: HTMLCanvasElement) {
     const { clientWidth: w, clientHeight: h } = parent;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // pull the sphere slightly off-screen-right on wide viewports
-    group.position.x = w / h > 1 ? 3.2 : 0;
+    if (w / h > 1) {
+      root.position.set(-7.5, 0.5, 0); // shifts the laptop to the right
+      root.scale.setScalar(1.05);
+      camera.position.set(0, 0, -26);
+    } else {
+      root.position.set(0, -1, 0);
+      root.scale.setScalar(0.82);
+      camera.position.set(0, 0, -30);
+    }
+    camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
   }
   const ro = new ResizeObserver(resize);
   if (canvas.parentElement) ro.observe(canvas.parentElement);
   resize();
 
-  // --- Loop ------------------------------------------------------------
+  // --- Loop -----------------------------------------------------------
   const t0 = performance.now();
+  let clockTime = 0;
   let raf = 0;
   let running = true;
 
   function tick() {
     if (!running) return;
-    const t = (performance.now() - t0) / 1000;
-    uniforms.uTime.value = t;
-    if (uniforms.uIntro.value < 1) {
-      uniforms.uIntro.value = Math.min(1, uniforms.uIntro.value + 0.012);
+    clockTime = (performance.now() - t0) / 1000;
+    if (!triggered && clockTime > 6) playIntro();
+
+    const t = clockTime;
+    mouse.x += (target.x - mouse.x) * 0.05;
+    mouse.y += (target.y - mouse.y) * 0.05;
+
+    if (loaded) {
+      // Lid spring
+      const p = triggered ? easeOutCubic(clamp01((t - triggerTime) / 1.2)) : 0;
+      hinge.rotation.x = lerp(HINGE_CLOSED, HINGE_OPEN, p);
+
+      // Floating sway (reference formulas) + subtle mouse parallax
+      const open = triggered;
+      floatG.rotation.x = lerp(
+        floatG.rotation.x,
+        open ? Math.cos(t / 10) / 10 + 0.25 + mouse.y * 0.1 : 0,
+        0.1,
+      );
+      floatG.rotation.y = lerp(
+        floatG.rotation.y,
+        open ? Math.sin(t / 10) / 4 + mouse.x * 0.4 : 0,
+        0.1,
+      );
+      floatG.rotation.z = lerp(
+        floatG.rotation.z,
+        open ? Math.sin(t / 10) / 10 : 0,
+        0.1,
+      );
+      floatG.position.y = lerp(
+        floatG.position.y,
+        open ? (-2 + Math.sin(t)) / 3 : -4.3,
+        0.1,
+      );
+
+      // Screen typing begins shortly after the lid starts opening
+      const screenP = triggered ? clamp01((t - triggerTime - 0.7) / 1.8) : 0;
+      updateScreen(screenP, t);
+      screenTex.needsUpdate = true;
     }
-    mouse.x += (target.x - mouse.x) * 0.04;
-    mouse.y += (target.y - mouse.y) * 0.04;
-    group.rotation.y += 0.0016;
-    group.rotation.x = mouse.y * 0.3;
-    group.rotation.z = -mouse.x * 0.12;
-    camera.position.x = mouse.x * 0.8;
-    camera.lookAt(group.position);
+
     renderer.render(scene, camera);
     raf = requestAnimationFrame(tick);
   }
   tick();
 
-  // Pause when offscreen to save the battery
   const io = new IntersectionObserver(
     ([entry]) => {
       running = entry.isIntersecting;
@@ -149,14 +236,133 @@ export function createHeroScene(canvas: HTMLCanvasElement) {
   );
   io.observe(canvas);
 
-  return function dispose() {
+  function dispose() {
     running = false;
     cancelAnimationFrame(raf);
     window.removeEventListener('pointermove', onPointer);
     ro.disconnect();
     io.disconnect();
-    geometry.dispose();
-    material.dispose();
+    draco.dispose();
+    pmrem.dispose();
     renderer.dispose();
+  }
+
+  return { dispose, playIntro };
+}
+
+/* ----------------------------------------------------------------------
+   Screen: a minimal code editor that types out "hello world"
+---------------------------------------------------------------------- */
+type Seg = { t: string; c: string };
+const KW = '#ff7b72';
+const VAR = '#79c0ff';
+const STR = '#c6ff3c';
+const FN = '#d2a8ff';
+const PUNC = '#8b949e';
+const WHITE = '#e6edf3';
+
+const CODE: Seg[] = [
+  { t: 'const ', c: KW },
+  { t: 'greeting', c: VAR },
+  { t: ' = ', c: PUNC },
+  { t: '"hello world"', c: STR },
+  { t: ';', c: PUNC },
+  { t: '\n\n', c: PUNC },
+  { t: 'console', c: WHITE },
+  { t: '.', c: PUNC },
+  { t: 'log', c: FN },
+  { t: '(', c: PUNC },
+  { t: 'greeting', c: VAR },
+  { t: ');', c: PUNC },
+];
+const TOTAL = CODE.reduce((n, s) => n + s.t.length, 0);
+
+const screenCanvas = document.createElement('canvas');
+screenCanvas.width = 1024;
+screenCanvas.height = 640;
+
+function updateScreen(reveal: number, time: number) {
+  const ctx = screenCanvas.getContext('2d')!;
+  const W = 1024;
+  const H = 640;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // title bar
+  ctx.fillStyle = '#161b22';
+  ctx.fillRect(0, 0, W, 56);
+  ['#ff5f56', '#ffbd2e', '#27c93f'].forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(34 + i * 30, 28, 9, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.fillStyle = '#7d8590';
+  ctx.font = "26px 'Space Mono', monospace";
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText('hello.ts', W / 2, 28);
+  ctx.textAlign = 'left';
+
+  const codeAlpha = Math.min(1, reveal * 4);
+  ctx.globalAlpha = codeAlpha;
+
+  const fontSize = 34;
+  ctx.font = `${fontSize}px 'Space Mono', monospace`;
+  const lineH = 52;
+  const startX = 96;
+  const startY = 120;
+  let x = startX;
+  let line = 0;
+  const drawLineNo = (n: number) => {
+    ctx.fillStyle = '#484f58';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(n + 1), 70, startY + n * lineH);
+    ctx.textAlign = 'left';
   };
+  drawLineNo(0);
+
+  const budget = Math.floor(reveal * TOTAL);
+  let drawn = 0;
+  let lastX = startX;
+  let lastY = startY;
+  for (const seg of CODE) {
+    for (const ch of seg.t) {
+      if (drawn >= budget) break;
+      if (ch === '\n') {
+        line++;
+        x = startX;
+        drawLineNo(line);
+      } else {
+        ctx.fillStyle = seg.c;
+        ctx.fillText(ch, x, startY + line * lineH);
+        x += ctx.measureText(ch).width;
+      }
+      lastX = x;
+      lastY = startY + line * lineH;
+      drawn++;
+    }
+    if (drawn >= budget) break;
+  }
+
+  if (codeAlpha > 0 && (reveal < 1 || Math.floor(time * 1.6) % 2 === 0)) {
+    ctx.fillStyle = '#c6ff3c';
+    ctx.fillRect(lastX + 2, lastY - fontSize / 2, 3, fontSize);
+  }
+  ctx.globalAlpha = 1;
+
+  if (reveal >= 1) {
+    ctx.strokeStyle = '#21262d';
+    ctx.beginPath();
+    ctx.moveTo(0, H - 130);
+    ctx.lineTo(W, H - 130);
+    ctx.stroke();
+    ctx.fillStyle = '#7d8590';
+    ctx.font = "22px 'Space Mono', monospace";
+    ctx.fillText('OUTPUT', 96, H - 100);
+    ctx.fillStyle = '#c6ff3c';
+    ctx.font = "32px 'Space Mono', monospace";
+    ctx.fillText('▸ hello world', 96, H - 56);
+  }
 }

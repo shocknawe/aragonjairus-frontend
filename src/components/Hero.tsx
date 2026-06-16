@@ -5,20 +5,26 @@ import { createHeroScene } from '../three/heroScene';
 export default function Hero({ start }: { start: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLElement>(null);
+  const scene = useRef<ReturnType<typeof createHeroScene> | null>(null);
 
   // Three.js scene
   useEffect(() => {
     if (!canvas.current) return;
     try {
-      return createHeroScene(canvas.current);
+      scene.current = createHeroScene(canvas.current);
     } catch (err) {
       console.warn('Hero WebGL scene unavailable:', err);
     }
+    return () => {
+      scene.current?.dispose();
+      scene.current = null;
+    };
   }, []);
 
   // Intro reveal — fires once the preloader hands over
   useEffect(() => {
     if (!start) return;
+    scene.current?.playIntro();
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power4.out' } });
       tl.from('.hero__eyebrow', { y: 20, opacity: 0, duration: 0.8 })

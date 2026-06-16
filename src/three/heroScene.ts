@@ -134,7 +134,7 @@ export function createHeroScene(canvas: HTMLCanvasElement) {
   function playIntro() {
     if (triggered) return;
     triggered = true;
-    triggerTime = clockTime;
+    triggerTime = clockTime + 0.4; // slight delay before the lid starts opening
   }
   const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
   const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);

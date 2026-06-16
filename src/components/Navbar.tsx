@@ -2,7 +2,9 @@ export default function Navbar() {
   return (
     <nav className="nav">
       <a href="#top" className="nav__logo" aria-label="Jairus Aragon — home">
-        <span className="nav__logo-mark">JA</span>
+        <span className="nav__logo-mark">
+          <img src="/logo.png" alt="" />
+        </span>
         <span>Jairus Aragon</span>
       </a>
       <div className="nav__links">

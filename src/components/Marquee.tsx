@@ -3,6 +3,8 @@ import { gsap } from 'gsap';
 import { awards } from '../data/portfolio';
 
 const ITEMS = awards;
+// Discipline spectrum — the same hues that thread through the rest of the site.
+const HUES = ['var(--c-green)', 'var(--c-amber)', 'var(--c-red)', 'var(--c-violet)'];
 
 export default function Marquee() {
   const track = useRef<HTMLDivElement>(null);
@@ -24,10 +26,12 @@ export default function Marquee() {
 
   const sequence = (
     <>
-      {ITEMS.map((item) => (
+      {ITEMS.map((item, i) => (
         <span className="marquee__item" key={item}>
           {item}
-          <span className="marquee__star">✦</span>
+          <span className="marquee__star" style={{ color: HUES[i % HUES.length] }}>
+            ✦
+          </span>
         </span>
       ))}
     </>

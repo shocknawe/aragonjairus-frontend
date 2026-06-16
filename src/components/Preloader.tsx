@@ -9,13 +9,11 @@ export default function Preloader({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     const ctx = gsap.context(() => {
       const counter = { v: 0 };
-      const tl = gsap.timeline({
-        onComplete: () => onDone(),
-      });
+      const tl = gsap.timeline();
 
       tl.from('.preloader__word > span', {
         yPercent: 120,
-        duration: 1,
+        duration: 0.9,
         ease: 'power4.out',
         stagger: 0.08,
       })
@@ -23,7 +21,7 @@ export default function Preloader({ onDone }: { onDone: () => void }) {
           counter,
           {
             v: 100,
-            duration: 2,
+            duration: 1.5,
             ease: 'power2.inOut',
             onUpdate: () => {
               if (count.current)
@@ -32,13 +30,20 @@ export default function Preloader({ onDone }: { onDone: () => void }) {
           },
           0,
         )
-        .to(bar.current, { width: '100%', duration: 2, ease: 'power2.inOut' }, 0)
-        .to('.preloader__inner', { yPercent: -30, opacity: 0, duration: 0.6, ease: 'power3.in' })
-        .to(root.current, {
-          yPercent: -100,
-          duration: 0.9,
-          ease: 'power4.inOut',
-        });
+        .to(bar.current, { width: '100%', duration: 1.5, ease: 'power2.inOut' }, 0)
+        .to(
+          '.preloader__inner',
+          { yPercent: -24, opacity: 0, duration: 0.5, ease: 'power3.in' },
+          '>-0.05',
+        )
+        // Hand the hero its cue the instant the curtain starts lifting, so its
+        // reveal rises into place exactly as the curtain clears it — one motion,
+        // not a second intro after the first has finished.
+        .to(
+          root.current,
+          { yPercent: -100, duration: 0.85, ease: 'power4.inOut', onStart: () => onDone() },
+          '<0.15',
+        );
     }, root);
 
     return () => ctx.revert();

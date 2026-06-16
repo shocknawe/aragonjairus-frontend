@@ -1,5 +1,6 @@
 /* ============================================================
-   Mira Vale — Portfolio design system
+   Jairus Aragon — Portfolio design system
+   Dark, all-sans, with a semantic discipline-coded accent spectrum.
    ============================================================ */
 
 :root {
@@ -16,17 +17,16 @@
   --line: rgba(236, 233, 226, 0.1);
   --line-strong: rgba(236, 233, 226, 0.18);
 
-  /* Accents */
-  --accent: #c6ff3c;
+  /* Accents — a semantic spectrum; green doubles as the shared "live" signal */
+  --accent: #54e6a0;
   --accent-ink: #0a0a0b;
   --c-green: #54e6a0;
   --c-amber: #ffb454;
   --c-red: #ff6a5c;
   --c-violet: #b29bff;
 
-  /* Type */
+  /* Type — one grotesque for display + body, mono for data/labels */
   --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-  --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   /* Layout */
@@ -216,11 +216,11 @@ button {
   gap: 2rem;
 }
 .preloader__word {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: clamp(2.5rem, 9vw, 8rem);
   line-height: 1;
-  font-style: italic;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   overflow: hidden;
   padding-bottom: 0.12em;
 }
@@ -338,16 +338,14 @@ button {
 }
 .hero__title {
   font-family: var(--font-sans);
-  font-weight: 500;
+  font-weight: 600;
   font-size: clamp(3.2rem, 13vw, 13rem);
   line-height: 0.92;
   letter-spacing: -0.045em;
 }
 .hero__title em {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  color: var(--accent);
+  font-style: normal;
+  color: var(--c-amber);
 }
 .hero__meta {
   margin-top: clamp(2rem, 5vw, 4rem);
@@ -365,6 +363,9 @@ button {
 .hero__lead strong {
   color: var(--text);
   font-weight: 500;
+}
+.hero__lead strong.hl-green {
+  color: var(--c-green);
 }
 .hero__avail {
   font-family: var(--font-mono);
@@ -387,13 +388,13 @@ button {
 }
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(198, 255, 60, 0.5);
+    box-shadow: 0 0 0 0 rgba(84, 230, 160, 0.5);
   }
   70% {
-    box-shadow: 0 0 0 12px rgba(198, 255, 60, 0);
+    box-shadow: 0 0 0 12px rgba(84, 230, 160, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(198, 255, 60, 0);
+    box-shadow: 0 0 0 0 rgba(84, 230, 160, 0);
   }
 }
 .hero__scroll {
@@ -454,17 +455,17 @@ button {
   will-change: transform;
 }
 .marquee__item {
-  font-family: var(--font-serif);
-  font-style: italic;
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: clamp(1.8rem, 5vw, 3.4rem);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--text);
 }
 .marquee__star {
   color: var(--accent);
   font-family: var(--font-sans);
-  font-style: normal;
   font-size: clamp(1rem, 2.4vw, 1.6rem);
+  margin-inline-start: 0.4em;
 }
 
 /* ============================================================
@@ -485,14 +486,13 @@ button {
 }
 .section__title {
   font-size: clamp(2rem, 5.5vw, 4.5rem);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1;
 }
 .section__title em {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
+  font-style: normal;
+  color: var(--c-green);
 }
 
 /* ============================================================
@@ -513,7 +513,7 @@ button {
 }
 .caps__cat {
   font-size: clamp(1.5rem, 3vw, 2.3rem);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--cat, var(--accent));
   margin-bottom: 1.1rem;
@@ -616,7 +616,7 @@ button {
 }
 .work__name {
   font-size: clamp(1.5rem, 4vw, 3rem);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.02em;
   transition: transform 0.5s var(--ease), opacity 0.4s var(--ease);
 }
@@ -671,8 +671,8 @@ button {
   height: 100%;
   display: grid;
   place-items: center;
-  font-family: var(--font-serif);
-  font-style: italic;
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: 1.6rem;
   color: var(--accent-ink);
 }
@@ -712,15 +712,13 @@ button {
 }
 .contact__title {
   font-size: clamp(3rem, 11vw, 9rem);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 0.9;
   letter-spacing: -0.04em;
 }
 .contact__title em {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  color: var(--accent);
+  font-style: normal;
+  color: var(--c-violet);
 }
 .contact__lead {
   margin-top: clamp(1.5rem, 3vw, 2.2rem);

@@ -3,7 +3,7 @@ import { gsap } from 'gsap';
 import { projects } from '../data/portfolio';
 
 const GRADIENTS = [
-  'linear-gradient(135deg,#c6ff3c,#54e6a0)',
+  'linear-gradient(135deg,#b29bff,#54e6a0)',
   'linear-gradient(135deg,#ffb454,#ff6a5c)',
   'linear-gradient(135deg,#b29bff,#6a8bff)',
   'linear-gradient(135deg,#54e6a0,#3ad0ff)',

@@ -62,8 +62,8 @@ export default function Hero({ start }: { start: boolean }) {
         <div className="hero__meta">
           <p className="hero__lead">
             I’m <strong>Jairus Aragon</strong>, an award-winning frontend developer
-            with <strong>16 years</strong> on the web — 5 of them in a design
-            studio. I build interfaces that look considered and hold up in production.
+            with <strong className="hl-green">16 years</strong> on the web — 5 of them in a
+            design studio. I build interfaces that look considered and hold up in production.
           </p>
           <span className="hero__avail">
             <span className="dot-pulse" />

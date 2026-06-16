@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 /**
- * A stylised wireframe globe: latitude/longitude lines, glowing surface
- * points and a couple of travelling arcs. Nods to the wireframe's earth.
+ * A stylised wireframe globe: faint latitude/longitude lines and glowing
+ * surface points tinted across the site's highlight palette.
  */
 export function createGlobeScene(canvas: HTMLCanvasElement) {
   const renderer = new THREE.WebGLRenderer({
@@ -22,8 +22,8 @@ export function createGlobeScene(canvas: HTMLCanvasElement) {
   scene.add(globe);
 
   const R = 4.4;
-  // Site highlight palette (matches the capability accent colours).
-  const palette = ['#c6ff3c', '#54e6a0', '#ffb454', '#ff6a5c', '#b29bff'].map(
+  // Site highlight palette — the four discipline accent colours.
+  const palette = ['#54e6a0', '#ffb454', '#ff6a5c', '#b29bff'].map(
     (c) => new THREE.Color(c),
   );
 

@@ -158,6 +158,22 @@ button {
 }
 
 /* ============================================================
+   Low-performance tier — drop GPU-expensive effects.
+   <body> is tagged .low-performance / .high-performance from perf.ts.
+   mix-blend-mode forces full-viewport compositor layers, which stalls
+   weak GPUs; fall back to plain compositing on low-tier devices.
+   ============================================================ */
+.low-performance .grain,
+.low-performance .cursor-dot,
+.low-performance .cursor-ring,
+.low-performance .nav {
+  mix-blend-mode: normal;
+}
+.low-performance .grain {
+  display: none; /* the grain only reads with the overlay blend */
+}
+
+/* ============================================================
    Custom cursor
    ============================================================ */
 .cursor-dot,

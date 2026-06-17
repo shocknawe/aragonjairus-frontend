@@ -2,6 +2,9 @@ import { createRoot } from 'react-dom/client';
 import './tailwind.css';
 import './styles/global.css';
 import App from './App';
+import { applyPerfClass } from './three/perf';
+
+applyPerfClass(); // tag <body> low-/high-performance for CSS
 
 const container = document.getElementById('root');
 if (!container) {

@@ -79,3 +79,13 @@ export function qualityFor(tier: PerfTier = perfTier()): QualitySettings {
     matrixDoubleSide: true,
   };
 }
+
+/**
+ * Tag <body> with the active tier so CSS can switch off expensive effects
+ * (mix-blend-mode, etc.) on weak hardware. Call once at startup.
+ */
+export function applyPerfClass(): void {
+  const tier = perfTier();
+  document.body.classList.toggle('low-performance', tier === 'low');
+  document.body.classList.toggle('high-performance', tier === 'high');
+}

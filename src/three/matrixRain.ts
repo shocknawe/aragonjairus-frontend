@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { qualityFor } from './perf';
 
 /**
  * Volumetric "digital rain" backdrop — a field of instanced glyph columns
@@ -12,6 +13,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
  */
 export function createMatrixRain(canvas: HTMLCanvasElement) {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const quality = qualityFor();
 
   const CONFIG = {
     // color: new THREE.Color('#9298a2'), // trail — cool grey
@@ -19,7 +21,7 @@ export function createMatrixRain(canvas: HTMLCanvasElement) {
     color: new THREE.Color('#232324'), // trail — cool grey
     headColor: new THREE.Color('#333438'), // leading glyph — near white
     bgColor: '#0a0a0b',
-    columnCount: 3200,
+    columnCount: quality.matrixColumns,
     range: 120,
     minSpeed: 0.2,
     maxSpeed: 0.8,
@@ -36,10 +38,12 @@ export function createMatrixRain(canvas: HTMLCanvasElement) {
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    // AA is wasted here: with bloom we render through a composer target (canvas
+    // MSAA is ignored), and the cheap no-bloom path prioritises throughput.
+    antialias: false,
     powerPreference: 'high-performance',
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio));
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.bgColor);
@@ -201,7 +205,7 @@ export function createMatrixRain(canvas: HTMLCanvasElement) {
       }
     `,
     transparent: true,
-    side: THREE.DoubleSide,
+    side: quality.matrixDoubleSide ? THREE.DoubleSide : THREE.FrontSide,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
@@ -231,11 +235,16 @@ export function createMatrixRain(canvas: HTMLCanvasElement) {
   scene.add(mesh);
   material.uniforms.uCameraPos.value.copy(camera.position);
 
-  // --- Bloom ---------------------------------------------------------------
-  const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.3, 0.12);
-  composer.addPass(bloom);
+  // --- Bloom (high tier only) ----------------------------------------------
+  let composer: EffectComposer | null = null;
+  let bloom: UnrealBloomPass | null = null;
+  let useComposer = quality.matrixBloom;
+  if (quality.matrixBloom) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.3, 0.12);
+    composer.addPass(bloom);
+  }
 
   // --- Sizing --------------------------------------------------------------
   function resize() {
@@ -244,7 +253,7 @@ export function createMatrixRain(canvas: HTMLCanvasElement) {
     const w = parent.clientWidth;
     const h = parent.clientHeight || 1;
     renderer.setSize(w, h, false);
-    composer.setSize(w, h);
+    composer?.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
@@ -253,18 +262,44 @@ export function createMatrixRain(canvas: HTMLCanvasElement) {
   resize();
 
   // --- Loop ----------------------------------------------------------------
+  const render = () => {
+    if (useComposer && composer) composer.render();
+    else renderer.render(scene, camera);
+  };
+
+  // Runtime watchdog: a machine can clear the "high" startup probe yet still
+  // choke on bloom. If we hold below ~42fps for a sustained window, drop the
+  // composer to the cheap path rather than stutter forever.
+  let slowFrames = 0;
+  let watchdogDone = !useComposer;
+
   const clock = new THREE.Clock();
   let raf = 0;
   let running = true;
   function tick() {
     if (!running) return;
-    material.uniforms.uTime.value += clock.getDelta();
-    composer.render();
+    const dt = clock.getDelta();
+    material.uniforms.uTime.value += dt;
+
+    if (!watchdogDone) {
+      if (dt > 0.024) slowFrames++;
+      else slowFrames = Math.max(0, slowFrames - 1);
+      if (slowFrames > 90) {
+        bloom?.dispose();
+        composer?.dispose();
+        bloom = null;
+        composer = null;
+        useComposer = false;
+        watchdogDone = true;
+      }
+    }
+
+    render();
     raf = requestAnimationFrame(tick);
   }
 
   if (reduce) {
-    composer.render(); // single static frame, no animation
+    render(); // single static frame, no animation
   } else {
     raf = requestAnimationFrame(tick);
   }
@@ -290,8 +325,8 @@ export function createMatrixRain(canvas: HTMLCanvasElement) {
     geometry.dispose();
     material.dispose();
     fontData.texture.dispose();
-    bloom.dispose();
-    composer.dispose();
+    bloom?.dispose();
+    composer?.dispose();
     renderer.dispose();
   };
 }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { qualityFor } from './perf';
 
 /**
  * Floating MacBook hero, after the pmndrs "floating-laptop" demo.
@@ -9,13 +10,14 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
  * floating sway in vanilla Three.js, with "hello world" typed on the screen.
  */
 export function createHeroScene(canvas: HTMLCanvasElement) {
+  const quality = qualityFor();
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: quality.antialias,
     alpha: true,
     powerPreference: 'high-performance',
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.82;
 

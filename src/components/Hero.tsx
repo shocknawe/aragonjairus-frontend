@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { createHeroScene } from '../three/heroScene';
 import { createMatrixRain } from '../three/matrixRain';
+import { qualityFor } from '../three/perf';
+
+const showMatrix = qualityFor().matrixEnabled;
 
 export default function Hero({ start }: { start: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -23,9 +26,9 @@ export default function Hero({ start }: { start: boolean }) {
     };
   }, []);
 
-  // Matrix-rain backdrop behind the laptop
+  // Matrix-rain backdrop behind the laptop — skipped on low-tier devices
   useEffect(() => {
-    if (!matrix.current) return;
+    if (!showMatrix || !matrix.current) return;
     let dispose: (() => void) | undefined;
     try {
       dispose = createMatrixRain(matrix.current);
@@ -54,7 +57,7 @@ export default function Hero({ start }: { start: boolean }) {
         )
         .from('.hero__scroll', { opacity: 0, duration: 0.8 }, '-=0.4')
         .fromTo(
-          ['.hero__matrix', '.hero__canvas'],
+          showMatrix ? ['.hero__matrix', '.hero__canvas'] : ['.hero__canvas'],
           { opacity: 0 },
           { opacity: 1, duration: 1.4 },
           0.2,
@@ -65,7 +68,7 @@ export default function Hero({ start }: { start: boolean }) {
 
   return (
     <header className="hero" id="top" ref={root}>
-      <canvas className="hero__matrix" ref={matrix} aria-hidden />
+      {showMatrix && <canvas className="hero__matrix" ref={matrix} aria-hidden />}
       <canvas className="hero__canvas" ref={canvas} aria-hidden />
       <div className="container hero__inner">
         <span className="eyebrow hero__eyebrow">Hello World — Frontend Developer</span>
